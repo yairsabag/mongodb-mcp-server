@@ -1,0 +1,9 @@
+node_modules
+.vscode/mcp.json
+.github/prompts/*
+
+# Environment variables
+.env
+
+# Sensitive
+state.json
