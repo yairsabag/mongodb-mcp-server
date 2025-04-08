@@ -212,10 +212,10 @@ export class Server {
             };
         }
     }
-    mcpServer() {
+    createMcpServer() {
         const server = new McpServer({
             name: "MongoDB Atlas",
-            version: process.env.VERSION || "1.0.0",
+            version: config.version,
         });
         server.tool("auth", "Authenticate to Atlas", async ({}) => this.authTool());
         let projectIdFilter = z.string().describe("Optional Atlas project ID to filter clusters");
@@ -230,7 +230,7 @@ export class Server {
     }
     async connect(transport) {
         await this.init();
-        const server = this.mcpServer();
+        const server = this.createMcpServer();
         await server.connect(transport);
     }
 }
