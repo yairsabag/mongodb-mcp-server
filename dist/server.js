@@ -43,7 +43,7 @@ export class Server {
                     await this.apiClient.retrieveToken(this.state.auth.code.device_code);
                     return !!this.state.auth.token;
                 }
-                catch (error) {
+                catch {
                     return false;
                 }
             case "issued":
@@ -217,8 +217,10 @@ export class Server {
             name: "MongoDB Atlas",
             version: config.version,
         });
-        server.tool("auth", "Authenticate to Atlas", async ({}) => this.authTool());
-        let projectIdFilter = z.string().describe("Optional Atlas project ID to filter clusters");
+        server.tool("auth", "Authenticate to Atlas", async () => this.authTool());
+        let projectIdFilter = z
+            .string()
+            .describe("Optional Atlas project ID to filter clusters");
         if (config.projectID) {
             projectIdFilter = projectIdFilter.optional();
         }
