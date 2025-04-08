@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-
-# atlas-mcp-server
-
-# TBD
-
 # Atlas MCP Server PoC
 
 A Model Context Protocol server for interacting with MongoDB Atlas.
