@@ -5,10 +5,9 @@ import { ensureAuthenticated } from "./auth.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { AtlasToolBase } from "./atlasTool.js";
 import { State } from "../../state.js";
+import { ToolArgs } from "../tool.js";
 
-export class ListClustersTool extends AtlasToolBase<{
-    projectId: ZodString | ZodOptional<ZodString>;
-}> {
+export class ListClustersTool extends AtlasToolBase {
     protected name = "listClusters";
     protected description = "List MongoDB Atlas clusters";
     protected argsShape;
@@ -29,7 +28,7 @@ export class ListClustersTool extends AtlasToolBase<{
         };
     }
 
-    protected async execute({ projectId }: { projectId: string }): Promise<CallToolResult> {
+    protected async execute({ projectId }: ToolArgs<typeof this.argsShape>): Promise<CallToolResult> {
         await ensureAuthenticated(this.state, this.apiClient);
 
         let clusters: AtlasCluster[] | undefined = undefined;

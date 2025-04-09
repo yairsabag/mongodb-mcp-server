@@ -1,22 +1,24 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z, ZodRawShape, ZodTypeAny } from "zod";
+import { z, ZodNever, ZodRawShape } from "zod";
 import { log } from "../logger.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { State } from "../state.js";
 
-export abstract class ToolBase<Args extends ZodRawShape> {
+export type ToolArgs<Args extends ZodRawShape> = z.objectOutputType<Args, ZodNever>;
+
+export abstract class ToolBase {
     protected abstract name: string;
 
     protected abstract description: string;
 
-    protected abstract argsShape: Args;
+    protected abstract argsShape: ZodRawShape;
 
-    protected abstract execute(args: z.objectOutputType<Args, ZodTypeAny>): Promise<CallToolResult>;
+    protected abstract execute(args: ToolArgs<typeof this.argsShape>): Promise<CallToolResult>;
 
     protected constructor(protected state: State) {}
 
     public register(server: McpServer): void {
-        const callback = async (args: z.objectOutputType<Args, ZodTypeAny>): Promise<CallToolResult> => {
+        const callback = async (args: ToolArgs<typeof this.argsShape>): Promise<CallToolResult> => {
             try {
                 // TODO: add telemetry here
 
@@ -37,15 +39,17 @@ export abstract class ToolBase<Args extends ZodRawShape> {
                     };
                 }
 
-                return {
-                    content: [
-                        {
-                            type: "text",
-                            text: `Error running ${this.name}: ${error instanceof Error ? error.message : String(error)}`,
-                        },
-                    ],
-                    isError: true,
-                };
+                return (
+                    this.handleError(error) || {
+                        content: [
+                            {
+                                type: "text",
+                                text: `Error running ${this.name}: ${error instanceof Error ? error.message : String(error)}`,
+                            },
+                        ],
+                        isError: true,
+                    }
+                );
             }
         };
 
@@ -57,5 +61,11 @@ export abstract class ToolBase<Args extends ZodRawShape> {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             server.tool(this.name, this.description, callback as any);
         }
+    }
+
+    // This method is intended to be overridden by subclasses to handle errors
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    protected handleError(error: unknown): CallToolResult | undefined {
+        return undefined;
     }
 }
