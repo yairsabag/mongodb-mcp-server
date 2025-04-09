@@ -1,4 +1,12 @@
-import config from "./config.js";
+import config from "../../config.js";
+
+import {
+    Group,
+    PaginatedOrgGroupView,
+    PaginatedAtlasGroupView,
+    ClusterDescription20240805,
+    PaginatedClusterDescription20240805,
+} from "./openapi.js";
 
 export interface OAuthToken {
     access_token: string;
@@ -10,38 +18,12 @@ export interface OAuthToken {
     expiry: Date;
 }
 
-export interface AtlasProject {
-    id: string;
-    name: string;
-    created?: {
-        $date: string;
-    };
-}
-
-export interface AtlasCluster {
-    id?: string;
-    name: string;
-    stateName: string;
-    mongoDBVersion?: string;
-    providerSettings?: {
-        regionName?: string;
-    };
-    connectionStrings?: {
-        standard?: string;
-    };
-}
-
 export interface OauthDeviceCode {
     user_code: string;
     verification_uri: string;
     device_code: string;
     expires_in: string;
     interval: string;
-}
-
-export interface AtlasResponse<T> {
-    results: T[];
-    totalCount?: number;
 }
 
 export type saveTokenFunction = (token: OAuthToken) => void | Promise<void>;
@@ -120,10 +102,11 @@ export class ApiClient {
                 ...options?.headers,
             },
         };
+
         const response = await fetch(url, opt);
 
         if (!response.ok) {
-            throw new ApiClientError(`Error calling Atlas API: ${response.statusText}`, response);
+            throw new ApiClientError(`Error calling Atlas API: ${await response.text()}`, response);
         }
 
         return (await response.json()) as T;
@@ -282,31 +265,33 @@ export class ApiClient {
         }
     }
 
-    /**
-     * Get all projects for the authenticated user
-     */
-    async listProjects(): Promise<AtlasResponse<AtlasProject>> {
-        return await this.do<AtlasResponse<AtlasProject>>("/groups");
+    async listProjects(): Promise<PaginatedAtlasGroupView> {
+        return await this.do<PaginatedAtlasGroupView>("/groups");
     }
 
-    /**
-     * Get a specific project by ID
-     */
-    async getProject(projectId: string): Promise<AtlasProject> {
-        return await this.do<AtlasProject>(`/groups/${projectId}`);
+    async getProject(groupId: string): Promise<Group> {
+        return await this.do<Group>(`/groups/${groupId}`);
     }
 
-    /**
-     * Get clusters for a specific project
-     */
-    async listProjectClusters(projectId: string): Promise<AtlasResponse<AtlasCluster>> {
-        return await this.do<AtlasResponse<AtlasCluster>>(`/groups/${projectId}/clusters`);
+    async listClusters(groupId: string): Promise<PaginatedClusterDescription20240805> {
+        return await this.do<PaginatedClusterDescription20240805>(`/groups/${groupId}/clusters`);
     }
 
-    /**
-     * Get clusters for a specific project
-     */
-    async listAllClusters(): Promise<AtlasResponse<AtlasCluster>> {
-        return await this.do<AtlasResponse<AtlasCluster>>(`/clusters`);
+    async listClustersForAllProjects(): Promise<PaginatedOrgGroupView> {
+        return await this.do<PaginatedOrgGroupView>(`/clusters`);
+    }
+
+    async getCluster(groupId: string, clusterName: string): Promise<ClusterDescription20240805> {
+        return await this.do<ClusterDescription20240805>(`/groups/${groupId}/clusters/${clusterName}`);
+    }
+
+    async createCluster(groupId: string, cluster: ClusterDescription20240805): Promise<ClusterDescription20240805> {
+        if (!cluster.groupId) {
+            throw new Error("Cluster groupId is required");
+        }
+        return await this.do<ClusterDescription20240805>(`/groups/${groupId}/clusters`, {
+            method: "POST",
+            body: JSON.stringify(cluster),
+        });
     }
 }
