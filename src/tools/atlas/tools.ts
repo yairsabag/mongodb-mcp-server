@@ -1,5 +1,5 @@
 import { ToolBase } from "../tool.js";
-import { ApiClient } from "../../common/atlas/client.js";
+import { ApiClient } from "../../common/atlas/apiClient.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { State } from "../../state.js";
 import { AuthTool } from "./auth.js";
@@ -9,6 +9,8 @@ import { InspectClusterTool } from "./inspectCluster.js";
 import { CreateFreeClusterTool } from "./createFreeCluster.js";
 import { CreateAccessListTool } from "./createAccessList.js";
 import { InspectAccessListTool } from "./inspectAccessList.js";
+import { ListDBUsersTool } from "./listDBUsers.js";
+import { CreateDBUserTool } from "./createDBUser.js";
 
 export function registerAtlasTools(server: McpServer, state: State, apiClient: ApiClient) {
     const tools: ToolBase[] = [
@@ -19,6 +21,8 @@ export function registerAtlasTools(server: McpServer, state: State, apiClient: A
         new CreateFreeClusterTool(state, apiClient),
         new CreateAccessListTool(state, apiClient),
         new InspectAccessListTool(state, apiClient),
+        new ListDBUsersTool(state, apiClient),
+        new CreateDBUserTool(state, apiClient),
     ];
 
     for (const tool of tools) {
