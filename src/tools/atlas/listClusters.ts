@@ -19,20 +19,32 @@ export class ListClustersTool extends AtlasToolBase {
 
             return this.formatAllClustersTable(data);
         } else {
-            const project = await this.apiClient.getProject(projectId);
+            const project = await this.apiClient.getProject({
+                params: {
+                    path: {
+                        groupId: projectId,
+                    },
+                },
+            });
 
             if (!project?.id) {
                 throw new Error(`Project with ID "${projectId}" not found.`);
             }
 
-            const data = await this.apiClient.listClusters(project.id || "");
+            const data = await this.apiClient.listClusters({
+                params: {
+                    path: {
+                        groupId: project.id || "",
+                    },
+                },
+            });
 
             return this.formatClustersTable(project, data);
         }
     }
 
-    private formatAllClustersTable(clusters: PaginatedOrgGroupView): CallToolResult {
-        if (!clusters.results?.length) {
+    private formatAllClustersTable(clusters?: PaginatedOrgGroupView): CallToolResult {
+        if (!clusters?.results?.length) {
             throw new Error("No clusters found.");
         }
         const rows = clusters
@@ -59,8 +71,8 @@ ${rows}`,
         };
     }
 
-    private formatClustersTable(project: Group, clusters: PaginatedClusterDescription20240805): CallToolResult {
-        if (!clusters.results?.length) {
+    private formatClustersTable(project: Group, clusters?: PaginatedClusterDescription20240805): CallToolResult {
+        if (!clusters?.results?.length) {
             throw new Error("No clusters found.");
         }
         const rows = clusters

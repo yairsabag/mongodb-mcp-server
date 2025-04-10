@@ -1,16 +1,7 @@
 import config from "../../config.js";
+import createClient, { FetchOptions, Middleware } from "openapi-fetch";
 
-import {
-    Group,
-    PaginatedOrgGroupView,
-    PaginatedAtlasGroupView,
-    ClusterDescription20240805,
-    PaginatedClusterDescription20240805,
-    PaginatedNetworkAccessView,
-    NetworkPermissionEntry,
-    CloudDatabaseUser,
-    PaginatedApiAtlasDatabaseUserView,
-} from "./openapi.js";
+import { paths, operations } from "./openapi.js";
 
 export interface OAuthToken {
     access_token: string;
@@ -40,6 +31,16 @@ export class ApiClientError extends Error {
         this.name = "ApiClientError";
         this.response = response;
     }
+
+    static async fromResponse(response: Response, message?: string): Promise<ApiClientError> {
+        message ||= `error calling Atlas API`;
+        try {
+            const text = await response.text();
+            return new ApiClientError(`${message}: [${response.status} ${response.statusText}] ${text}`, response);
+        } catch {
+            return new ApiClientError(`${message}: ${response.status} ${response.statusText}`, response);
+        }
+    }
 }
 
 export interface ApiClientOptions {
@@ -48,32 +49,40 @@ export interface ApiClientOptions {
 }
 
 export class ApiClient {
-    token?: OAuthToken;
-    saveToken?: saveTokenFunction;
+    private token?: OAuthToken;
+    private saveToken?: saveTokenFunction;
+    private client = createClient<paths>({
+        baseUrl: config.apiBaseUrl,
+        headers: {
+            "User-Agent": config.userAgent,
+            Accept: `application/vnd.atlas.${config.atlasApiVersion}+json`,
+        },
+    });
+    private authMiddleware = (apiClient: ApiClient): Middleware => ({
+        async onRequest({ request, schemaPath }) {
+            if (schemaPath.startsWith("/api/private/unauth") || schemaPath.startsWith("/api/oauth")) {
+                return undefined;
+            }
+            if (await apiClient.validateToken()) {
+                request.headers.set("Authorization", `Bearer ${apiClient.token?.access_token}`);
+                return request;
+            }
+        },
+    });
+    private errorMiddleware = (): Middleware => ({
+        async onResponse({ response }) {
+            if (!response.ok) {
+                throw await ApiClientError.fromResponse(response);
+            }
+        },
+    });
 
     constructor(options: ApiClientOptions) {
         const { token, saveToken } = options;
         this.token = token;
         this.saveToken = saveToken;
-    }
-
-    private defaultOptions(): RequestInit {
-        const authHeaders = !this.token?.access_token
-            ? null
-            : {
-                  Authorization: `Bearer ${this.token.access_token}`,
-              };
-
-        return {
-            method: "GET",
-            credentials: !this.token?.access_token ? undefined : "include",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: `application/vnd.atlas.${config.atlasApiVersion}+json`,
-                "User-Agent": config.userAgent,
-                ...authHeaders,
-            },
-        };
+        this.client.use(this.authMiddleware(this));
+        this.client.use(this.errorMiddleware());
     }
 
     async storeToken(token: OAuthToken): Promise<OAuthToken> {
@@ -84,36 +93,6 @@ export class ApiClient {
         }
 
         return token;
-    }
-
-    async do<T>(endpoint: string, options?: RequestInit): Promise<T> {
-        if (!this.token || !this.token.access_token) {
-            throw new Error("Not authenticated. Please run the auth tool first.");
-        }
-
-        const url = new URL(`api/atlas/v2${endpoint}`, `${config.apiBaseUrl}`);
-
-        if (!this.checkTokenExpiry()) {
-            await this.refreshToken();
-        }
-
-        const defaultOpt = this.defaultOptions();
-        const opt = {
-            ...defaultOpt,
-            ...options,
-            headers: {
-                ...defaultOpt.headers,
-                ...options?.headers,
-            },
-        };
-
-        const response = await fetch(url, opt);
-
-        if (!response.ok) {
-            throw new ApiClientError(`Error calling Atlas API: ${await response.text()}`, response);
-        }
-
-        return (await response.json()) as T;
     }
 
     async authenticate(): Promise<OauthDeviceCode> {
@@ -135,7 +114,7 @@ export class ApiClient {
         });
 
         if (!response.ok) {
-            throw new ApiClientError(`Failed to initiate authentication: ${response.statusText}`, response);
+            throw await ApiClientError.fromResponse(response, `failed to initiate authentication`);
         }
 
         return (await response.json()) as OauthDeviceCode;
@@ -166,14 +145,18 @@ export class ApiClient {
         try {
             const errorResponse = await response.json();
             if (errorResponse.errorCode === "DEVICE_AUTHORIZATION_PENDING") {
-                throw new ApiClientError("Authentication pending. Try again later.", response);
-            } else if (errorResponse.error === "expired_token") {
-                throw new ApiClientError("Device code expired. Please restart the authentication process.", response);
+                throw await ApiClientError.fromResponse(response, "Authentication pending. Try again later.");
             } else {
-                throw new ApiClientError("Device code expired. Please restart the authentication process.", response);
+                throw await ApiClientError.fromResponse(
+                    response,
+                    "Device code expired. Please restart the authentication process."
+                );
             }
         } catch {
-            throw new ApiClientError("Failed to retrieve token. Please check your device code.", response);
+            throw await ApiClientError.fromResponse(
+                response,
+                "Failed to retrieve token. Please check your device code."
+            );
         }
     }
 
@@ -195,7 +178,7 @@ export class ApiClient {
         });
 
         if (!response.ok) {
-            throw new ApiClientError(`Failed to refresh token: ${response.statusText}`, response);
+            throw await ApiClientError.fromResponse(response, "Failed to refresh token");
         }
         const data = await response.json();
 
@@ -229,7 +212,7 @@ export class ApiClient {
         });
 
         if (!response.ok) {
-            throw new ApiClientError(`Failed to revoke token: ${response.statusText}`, response);
+            throw await ApiClientError.fromResponse(response);
         }
 
         if (!token && this.token) {
@@ -269,58 +252,53 @@ export class ApiClient {
         }
     }
 
-    async listProjects(): Promise<PaginatedAtlasGroupView> {
-        return await this.do<PaginatedAtlasGroupView>("/groups");
+    async listProjects(options?: FetchOptions<operations["listProjects"]>) {
+        const { data } = await this.client.GET(`/api/atlas/v2/groups`, options);
+        return data;
     }
 
-    async listProjectIpAccessLists(groupId: string): Promise<PaginatedNetworkAccessView> {
-        return await this.do<PaginatedNetworkAccessView>(`/groups/${groupId}/accessList`);
+    async listProjectIpAccessLists(options: FetchOptions<operations["listProjectIpAccessLists"]>) {
+        const { data } = await this.client.GET(`/api/atlas/v2/groups/{groupId}/accessList`, options);
+        return data;
     }
 
-    async createProjectIpAccessList(
-        groupId: string,
-        entries: NetworkPermissionEntry[]
-    ): Promise<PaginatedNetworkAccessView> {
-        return await this.do<PaginatedNetworkAccessView>(`/groups/${groupId}/accessList`, {
-            method: "POST",
-            body: JSON.stringify(entries),
-        });
+    async createProjectIpAccessList(options: FetchOptions<operations["createProjectIpAccessList"]>) {
+        const { data } = await this.client.POST(`/api/atlas/v2/groups/{groupId}/accessList`, options);
+        return data;
     }
 
-    async getProject(groupId: string): Promise<Group> {
-        return await this.do<Group>(`/groups/${groupId}`);
+    async getProject(options: FetchOptions<operations["getProject"]>) {
+        const { data } = await this.client.GET(`/api/atlas/v2/groups/{groupId}`, options);
+        return data;
     }
 
-    async listClusters(groupId: string): Promise<PaginatedClusterDescription20240805> {
-        return await this.do<PaginatedClusterDescription20240805>(`/groups/${groupId}/clusters`);
+    async listClusters(options: FetchOptions<operations["listClusters"]>) {
+        const { data } = await this.client.GET(`/api/atlas/v2/groups/{groupId}/clusters`, options);
+        return data;
     }
 
-    async listClustersForAllProjects(): Promise<PaginatedOrgGroupView> {
-        return await this.do<PaginatedOrgGroupView>(`/clusters`);
+    async listClustersForAllProjects(options?: FetchOptions<operations["listClustersForAllProjects"]>) {
+        const { data } = await this.client.GET(`/api/atlas/v2/clusters`, options);
+        return data;
     }
 
-    async getCluster(groupId: string, clusterName: string): Promise<ClusterDescription20240805> {
-        return await this.do<ClusterDescription20240805>(`/groups/${groupId}/clusters/${clusterName}`);
+    async getCluster(options: FetchOptions<operations["getCluster"]>) {
+        const { data } = await this.client.GET(`/api/atlas/v2/groups/{groupId}/clusters/{clusterName}`, options);
+        return data;
     }
 
-    async createCluster(groupId: string, cluster: ClusterDescription20240805): Promise<ClusterDescription20240805> {
-        if (!cluster.groupId) {
-            throw new Error("Cluster groupId is required");
-        }
-        return await this.do<ClusterDescription20240805>(`/groups/${groupId}/clusters`, {
-            method: "POST",
-            body: JSON.stringify(cluster),
-        });
+    async createCluster(options: FetchOptions<operations["createCluster"]>) {
+        const { data } = await this.client.POST("/api/atlas/v2/groups/{groupId}/clusters", options);
+        return data;
     }
 
-    async createDatabaseUser(groupId: string, user: CloudDatabaseUser): Promise<CloudDatabaseUser> {
-        return await this.do<CloudDatabaseUser>(`/groups/${groupId}/databaseUsers`, {
-            method: "POST",
-            body: JSON.stringify(user),
-        });
+    async createDatabaseUser(options: FetchOptions<operations["createDatabaseUser"]>) {
+        const { data } = await this.client.POST("/api/atlas/v2/groups/{groupId}/databaseUsers", options);
+        return data;
     }
 
-    async listDatabaseUsers(groupId: string): Promise<PaginatedApiAtlasDatabaseUserView> {
-        return await this.do<PaginatedApiAtlasDatabaseUserView>(`/groups/${groupId}/databaseUsers`);
+    async listDatabaseUsers(options: FetchOptions<operations["listDatabaseUsers"]>) {
+        const { data } = await this.client.GET(`/api/atlas/v2/groups/{groupId}/databaseUsers`, options);
+        return data;
     }
 }
