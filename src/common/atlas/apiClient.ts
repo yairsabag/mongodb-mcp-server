@@ -64,7 +64,7 @@ export class ApiClient {
                 return undefined;
             }
             if (await apiClient.validateToken()) {
-                request.headers.set("Authorization", `Bearer ${apiClient.token?.access_token}`);
+                request.headers.set("Authorization", `Bearer ${apiClient.token!.access_token}`);
                 return request;
             }
         },
@@ -250,6 +250,32 @@ export class ApiClient {
         } catch {
             return false;
         }
+    }
+
+    async getIpInfo() {
+        if (!(await this.validateToken())) {
+            throw new Error("Not Authenticated");
+        }
+
+        const endpoint = "api/private/ipinfo";
+        const url = new URL(endpoint, config.apiBaseUrl);
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${this.token!.access_token}`,
+                "User-Agent": config.userAgent,
+            },
+        });
+
+        if (!response.ok) {
+            throw await ApiClientError.fromResponse(response);
+        }
+
+        const responseBody = await response.json();
+        return responseBody as {
+            currentIpv4Address: string;
+        };
     }
 
     async listProjects(options?: FetchOptions<operations["listProjects"]>) {
