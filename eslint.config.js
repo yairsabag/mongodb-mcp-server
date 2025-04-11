@@ -22,6 +22,7 @@ export default defineConfig([
         files,
         rules: {
             "@typescript-eslint/switch-exhaustiveness-check": "error",
+            "@typescript-eslint/no-non-null-assertion": "error",
         },
     },
     // Ignore features specific to TypeScript resolved rules
