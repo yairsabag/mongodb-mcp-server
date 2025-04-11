@@ -112,7 +112,9 @@ export class ApiClient {
         this.client.use(this.errorMiddleware());
     }
 
-    async getIpInfo() {
+    public async getIpInfo(): Promise<{
+        currentIpv4Address: string;
+    }> {
         const accessToken = await this.getAccessToken();
 
         const endpoint = "api/private/ipinfo";
@@ -130,10 +132,9 @@ export class ApiClient {
             throw await ApiClientError.fromResponse(response);
         }
 
-        const responseBody = await response.json();
-        return responseBody as {
+        return (await response.json()) as Promise<{
             currentIpv4Address: string;
-        };
+        }>;
     }
 
     async listProjects(options?: FetchOptions<operations["listProjects"]>) {
