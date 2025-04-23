@@ -77,6 +77,7 @@ export function setupIntegrationTest(userConfig: UserConfig = config): Integrati
     });
 
     beforeEach(async () => {
+        config.telemetry = "disabled";
         randomDbName = new ObjectId().toString();
     });
 
