@@ -2,9 +2,9 @@ import { describeWithMongoDB, validateAutoConnectBehavior } from "../mongodbHelp
 
 import {
     getResponseContent,
-    dbOperationParameters,
+    databaseCollectionParameters,
+    databaseCollectionInvalidArgs,
     validateToolMetadata,
-    dbOperationInvalidArgTests,
     validateThrowsForInvalidArguments,
 } from "../../../helpers.js";
 import * as crypto from "crypto";
@@ -14,13 +14,13 @@ describeWithMongoDB("collectionStorageSize tool", (integration) => {
         integration,
         "collection-storage-size",
         "Gets the size of the collection",
-        dbOperationParameters
+        databaseCollectionParameters
     );
 
-    validateThrowsForInvalidArguments(integration, "collection-storage-size", dbOperationInvalidArgTests);
+    validateThrowsForInvalidArguments(integration, "collection-storage-size", databaseCollectionInvalidArgs);
 
     describe("with non-existent database", () => {
-        it("returns 0 MB", async () => {
+        it("returns an error", async () => {
             await integration.connectMcpClient();
             const response = await integration.mcpClient().callTool({
                 name: "collection-storage-size",

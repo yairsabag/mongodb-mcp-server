@@ -1,5 +1,4 @@
 import { describeWithMongoDB, validateAutoConnectBehavior } from "../mongodbHelpers.js";
-
 import { getResponseElements, getParameters } from "../../../helpers.js";
 
 describeWithMongoDB("listDatabases tool", (integration) => {
@@ -21,7 +20,7 @@ describeWithMongoDB("listDatabases tool", (integration) => {
             const response = await integration.mcpClient().callTool({ name: "list-databases", arguments: {} });
             const dbNames = getDbNames(response.content);
 
-            expect(defaultDatabases).toIncludeAllMembers(defaultDatabases);
+            expect(defaultDatabases).toIncludeAllMembers(dbNames);
         });
     });
 

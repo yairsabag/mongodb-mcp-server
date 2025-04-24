@@ -2,10 +2,10 @@ import { describeWithMongoDB, validateAutoConnectBehavior } from "../mongodbHelp
 
 import {
     getResponseContent,
-    dbOperationParameters,
+    databaseCollectionParameters,
     validateToolMetadata,
     validateThrowsForInvalidArguments,
-    dbOperationInvalidArgTests,
+    databaseCollectionInvalidArgs,
 } from "../../../helpers.js";
 
 describeWithMongoDB("dropCollection tool", (integration) => {
@@ -13,10 +13,10 @@ describeWithMongoDB("dropCollection tool", (integration) => {
         integration,
         "drop-collection",
         "Removes a collection or view from the database. The method also removes any indexes associated with the dropped collection.",
-        dbOperationParameters
+        databaseCollectionParameters
     );
 
-    validateThrowsForInvalidArguments(integration, "drop-collection", dbOperationInvalidArgTests);
+    validateThrowsForInvalidArguments(integration, "drop-collection", databaseCollectionInvalidArgs);
 
     it("can drop non-existing collection", async () => {
         await integration.connectMcpClient();

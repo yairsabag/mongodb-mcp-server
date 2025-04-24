@@ -2,7 +2,7 @@ import { describeWithMongoDB, validateAutoConnectBehavior } from "../mongodbHelp
 
 import {
     getResponseContent,
-    dbOperationParameters,
+    databaseCollectionParameters,
     validateToolMetadata,
     validateThrowsForInvalidArguments,
 } from "../../../helpers.js";
@@ -10,7 +10,7 @@ import { IndexDirection } from "mongodb";
 
 describeWithMongoDB("createIndex tool", (integration) => {
     validateToolMetadata(integration, "create-index", "Create an index for a collection", [
-        ...dbOperationParameters,
+        ...databaseCollectionParameters,
         {
             name: "keys",
             type: "object",

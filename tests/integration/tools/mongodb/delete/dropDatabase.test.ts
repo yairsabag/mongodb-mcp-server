@@ -2,10 +2,10 @@ import { describeWithMongoDB, validateAutoConnectBehavior } from "../mongodbHelp
 
 import {
     getResponseContent,
-    dbOperationParameters,
     validateToolMetadata,
     validateThrowsForInvalidArguments,
-    dbOperationInvalidArgTests,
+    databaseParameters,
+    databaseInvalidArgs,
 } from "../../../helpers.js";
 
 describeWithMongoDB("dropDatabase tool", (integration) => {
@@ -13,10 +13,10 @@ describeWithMongoDB("dropDatabase tool", (integration) => {
         integration,
         "drop-database",
         "Removes the specified database, deleting the associated data files",
-        [dbOperationParameters.find((d) => d.name === "database")!]
+        databaseParameters
     );
 
-    validateThrowsForInvalidArguments(integration, "drop-database", dbOperationInvalidArgTests);
+    validateThrowsForInvalidArguments(integration, "drop-database", databaseInvalidArgs);
 
     it("can drop non-existing database", async () => {
         let { databases } = await integration.mongoClient().db("").admin().listDatabases();

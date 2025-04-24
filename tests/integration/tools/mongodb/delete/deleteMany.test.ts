@@ -2,7 +2,7 @@ import { describeWithMongoDB, validateAutoConnectBehavior } from "../mongodbHelp
 
 import {
     getResponseContent,
-    dbOperationParameters,
+    databaseCollectionParameters,
     validateToolMetadata,
     validateThrowsForInvalidArguments,
 } from "../../../helpers.js";
@@ -13,7 +13,7 @@ describeWithMongoDB("deleteMany tool", (integration) => {
         "delete-many",
         "Removes all documents that match the filter from a MongoDB collection",
         [
-            ...dbOperationParameters,
+            ...databaseCollectionParameters,
             {
                 name: "filter",
                 type: "object",

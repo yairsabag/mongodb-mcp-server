@@ -2,10 +2,10 @@ import { describeWithMongoDB, validateAutoConnectBehavior } from "../mongodbHelp
 
 import {
     getResponseContent,
-    dbOperationParameters,
+    databaseCollectionParameters,
     validateToolMetadata,
     validateThrowsForInvalidArguments,
-    dbOperationInvalidArgTests,
+    databaseCollectionInvalidArgs,
 } from "../../../helpers.js";
 
 describeWithMongoDB("createCollection tool", (integration) => {
@@ -13,10 +13,10 @@ describeWithMongoDB("createCollection tool", (integration) => {
         integration,
         "create-collection",
         "Creates a new collection in a database. If the database doesn't exist, it will be created automatically.",
-        dbOperationParameters
+        databaseCollectionParameters
     );
 
-    validateThrowsForInvalidArguments(integration, "create-collection", dbOperationInvalidArgTests);
+    validateThrowsForInvalidArguments(integration, "create-collection", databaseCollectionInvalidArgs);
 
     describe("with non-existent database", () => {
         it("creates a new collection", async () => {

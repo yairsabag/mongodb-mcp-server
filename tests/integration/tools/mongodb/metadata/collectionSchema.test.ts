@@ -3,10 +3,10 @@ import { describeWithMongoDB, validateAutoConnectBehavior } from "../mongodbHelp
 import {
     getResponseElements,
     getResponseContent,
-    dbOperationParameters,
+    databaseCollectionParameters,
     validateToolMetadata,
     validateThrowsForInvalidArguments,
-    dbOperationInvalidArgTests,
+    databaseCollectionInvalidArgs,
 } from "../../../helpers.js";
 import { Document } from "bson";
 import { OptionalId } from "mongodb";
@@ -17,10 +17,10 @@ describeWithMongoDB("collectionSchema tool", (integration) => {
         integration,
         "collection-schema",
         "Describe the schema for a collection",
-        dbOperationParameters
+        databaseCollectionParameters
     );
 
-    validateThrowsForInvalidArguments(integration, "collection-schema", dbOperationInvalidArgTests);
+    validateThrowsForInvalidArguments(integration, "collection-schema", databaseCollectionInvalidArgs);
 
     describe("with non-existent database", () => {
         it("returns empty schema", async () => {

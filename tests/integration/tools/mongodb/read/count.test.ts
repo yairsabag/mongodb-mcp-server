@@ -2,7 +2,7 @@ import { describeWithMongoDB, validateAutoConnectBehavior } from "../mongodbHelp
 
 import {
     getResponseContent,
-    dbOperationParameters,
+    databaseCollectionParameters,
     validateToolMetadata,
     validateThrowsForInvalidArguments,
 } from "../../../helpers.js";
@@ -16,7 +16,7 @@ describeWithMongoDB("count tool", (integration) => {
             type: "object",
             required: false,
         },
-        ...dbOperationParameters,
+        ...databaseCollectionParameters,
     ]);
 
     validateThrowsForInvalidArguments(integration, "count", [

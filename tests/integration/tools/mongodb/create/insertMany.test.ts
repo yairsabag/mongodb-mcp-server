@@ -2,14 +2,14 @@ import { describeWithMongoDB, validateAutoConnectBehavior } from "../mongodbHelp
 
 import {
     getResponseContent,
-    dbOperationParameters,
+    databaseCollectionParameters,
     validateToolMetadata,
     validateThrowsForInvalidArguments,
 } from "../../../helpers.js";
 
 describeWithMongoDB("insertMany tool", (integration) => {
     validateToolMetadata(integration, "insert-many", "Insert an array of documents into a MongoDB collection", [
-        ...dbOperationParameters,
+        ...databaseCollectionParameters,
         {
             name: "documents",
             type: "array",
