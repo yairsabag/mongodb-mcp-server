@@ -35,6 +35,7 @@ export class Server {
 
     async connect(transport: Transport) {
         this.mcpServer.server.registerCapabilities({ logging: {} });
+
         this.registerTools();
         this.registerResources();
 
@@ -115,6 +116,8 @@ export class Server {
 
         if (command === "start") {
             event.properties.startup_time_ms = commandDuration;
+            event.properties.read_only_mode = this.userConfig.readOnly || false;
+            event.properties.disallowed_tools = this.userConfig.disabledTools || [];
         }
         if (command === "stop") {
             event.properties.runtime_duration_ms = Date.now() - this.startTime;

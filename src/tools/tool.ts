@@ -9,7 +9,7 @@ import { UserConfig } from "../config.js";
 
 export type ToolArgs<Args extends ZodRawShape> = z.objectOutputType<Args, ZodNever>;
 
-export type OperationType = "metadata" | "read" | "create" | "delete" | "update" | "cluster";
+export type OperationType = "metadata" | "read" | "create" | "delete" | "update";
 export type ToolCategory = "mongodb" | "atlas";
 
 export abstract class ToolBase {
@@ -109,7 +109,11 @@ export abstract class ToolBase {
     // Checks if a tool is allowed to run based on the config
     protected verifyAllowed(): boolean {
         let errorClarification: string | undefined;
-        if (this.config.disabledTools.includes(this.category)) {
+
+        // Check read-only mode first
+        if (this.config.readOnly && !["read", "metadata"].includes(this.operationType)) {
+            errorClarification = `read-only mode is enabled, its operation type, \`${this.operationType}\`,`;
+        } else if (this.config.disabledTools.includes(this.category)) {
             errorClarification = `its category, \`${this.category}\`,`;
         } else if (this.config.disabledTools.includes(this.operationType)) {
             errorClarification = `its operation type, \`${this.operationType}\`,`;
