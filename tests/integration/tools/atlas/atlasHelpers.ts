@@ -6,10 +6,6 @@ import { config } from "../../../../src/config.js";
 
 export type IntegrationTestFunction = (integration: IntegrationTest) => void;
 
-export function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export function describeWithAtlas(name: string, fn: IntegrationTestFunction) {
     const testDefinition = () => {
         const integration = setupIntegrationTest(() => ({

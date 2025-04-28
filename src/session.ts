@@ -1,6 +1,7 @@
 import { NodeDriverServiceProvider } from "@mongosh/service-provider-node-driver";
 import { ApiClient, ApiClientCredentials } from "./common/atlas/apiClient.js";
 import { Implementation } from "@modelcontextprotocol/sdk/types.js";
+import logger, { LogId } from "./logger.js";
 import EventEmitter from "events";
 import { ConnectOptions } from "./config.js";
 
@@ -12,6 +13,7 @@ export interface SessionOptions {
 
 export class Session extends EventEmitter<{
     close: [];
+    disconnect: [];
 }> {
     sessionId?: string;
     serviceProvider?: NodeDriverServiceProvider;
@@ -19,6 +21,12 @@ export class Session extends EventEmitter<{
     agentRunner?: {
         name: string;
         version: string;
+    };
+    connectedAtlasCluster?: {
+        username: string;
+        projectId: string;
+        clusterName: string;
+        expiryDate: Date;
     };
 
     constructor({ apiBaseUrl, apiClientId, apiClientSecret }: SessionOptions) {
@@ -47,17 +55,47 @@ export class Session extends EventEmitter<{
         }
     }
 
-    async close(): Promise<void> {
+    async disconnect(): Promise<void> {
         if (this.serviceProvider) {
             try {
                 await this.serviceProvider.close(true);
-            } catch (error) {
-                console.error("Error closing service provider:", error);
+            } catch (err: unknown) {
+                const error = err instanceof Error ? err : new Error(String(err));
+                logger.error(LogId.mongodbDisconnectFailure, "Error closing service provider:", error.message);
             }
             this.serviceProvider = undefined;
-
-            this.emit("close");
         }
+        if (!this.connectedAtlasCluster) {
+            this.emit("disconnect");
+            return;
+        }
+        try {
+            await this.apiClient.deleteDatabaseUser({
+                params: {
+                    path: {
+                        groupId: this.connectedAtlasCluster.projectId,
+                        username: this.connectedAtlasCluster.username,
+                        databaseName: "admin",
+                    },
+                },
+            });
+        } catch (err: unknown) {
+            const error = err instanceof Error ? err : new Error(String(err));
+
+            logger.error(
+                LogId.atlasDeleteDatabaseUserFailure,
+                "atlas-connect-cluster",
+                `Error deleting previous database user: ${error.message}`
+            );
+        }
+        this.connectedAtlasCluster = undefined;
+
+        this.emit("disconnect");
+    }
+
+    async close(): Promise<void> {
+        await this.disconnect();
+        this.emit("close");
     }
 
     async connectToMongoDB(connectionString: string, connectOptions: ConnectOptions): Promise<void> {

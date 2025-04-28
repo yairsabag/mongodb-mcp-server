@@ -1,14 +1,18 @@
 import { Session } from "../../../../src/session.js";
 import { expectDefined } from "../../helpers.js";
-import { describeWithAtlas, withProject, sleep, randomId } from "./atlasHelpers.js";
+import { describeWithAtlas, withProject, randomId } from "./atlasHelpers.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+
+function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function deleteAndWaitCluster(session: Session, projectId: string, clusterName: string) {
     await session.apiClient.deleteCluster({
         params: {
             path: {
                 groupId: projectId,
-                clusterName: clusterName,
+                clusterName,
             },
         },
     });
@@ -18,7 +22,7 @@ async function deleteAndWaitCluster(session: Session, projectId: string, cluster
                 params: {
                     path: {
                         groupId: projectId,
-                        clusterName: clusterName,
+                        clusterName,
                     },
                 },
             });
@@ -26,6 +30,23 @@ async function deleteAndWaitCluster(session: Session, projectId: string, cluster
         } catch {
             break;
         }
+    }
+}
+
+async function waitClusterState(session: Session, projectId: string, clusterName: string, state: string) {
+    while (true) {
+        const cluster = await session.apiClient.getCluster({
+            params: {
+                path: {
+                    groupId: projectId,
+                    clusterName,
+                },
+            },
+        });
+        if (cluster?.stateName === state) {
+            return;
+        }
+        await sleep(1000);
     }
 }
 
@@ -66,7 +87,7 @@ describeWithAtlas("clusters", (integration) => {
                     },
                 })) as CallToolResult;
                 expect(response.content).toBeArray();
-                expect(response.content).toHaveLength(1);
+                expect(response.content).toHaveLength(2);
                 expect(response.content[0].text).toContain("has been created");
             });
         });
@@ -115,6 +136,49 @@ describeWithAtlas("clusters", (integration) => {
                 expect(response.content).toBeArray();
                 expect(response.content).toHaveLength(2);
                 expect(response.content[1].text).toContain(`${clusterName} | `);
+            });
+        });
+
+        describe("atlas-connect-cluster", () => {
+            beforeAll(async () => {
+                const projectId = getProjectId();
+                await waitClusterState(integration.mcpServer().session, projectId, clusterName, "IDLE");
+                await integration.mcpServer().session.apiClient.createProjectIpAccessList({
+                    params: {
+                        path: {
+                            groupId: projectId,
+                        },
+                    },
+                    body: [
+                        {
+                            comment: "MCP test",
+                            cidrBlock: "0.0.0.0/0",
+                        },
+                    ],
+                });
+            });
+
+            it("should have correct metadata", async () => {
+                const { tools } = await integration.mcpClient().listTools();
+                const connectCluster = tools.find((tool) => tool.name === "atlas-connect-cluster");
+
+                expectDefined(connectCluster);
+                expect(connectCluster.inputSchema.type).toBe("object");
+                expectDefined(connectCluster.inputSchema.properties);
+                expect(connectCluster.inputSchema.properties).toHaveProperty("projectId");
+                expect(connectCluster.inputSchema.properties).toHaveProperty("clusterName");
+            });
+
+            it("connects to cluster", async () => {
+                const projectId = getProjectId();
+
+                const response = (await integration.mcpClient().callTool({
+                    name: "atlas-connect-cluster",
+                    arguments: { projectId, clusterName },
+                })) as CallToolResult;
+                expect(response.content).toBeArray();
+                expect(response.content).toHaveLength(1);
+                expect(response.content[0].text).toContain(`Connected to cluster "${clusterName}"`);
             });
         });
     });
