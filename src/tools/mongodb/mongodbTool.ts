@@ -70,20 +70,7 @@ export abstract class MongoDBToolBase extends ToolBase {
         return super.handleError(error, args);
     }
 
-    protected async connectToMongoDB(connectionString: string): Promise<void> {
-        const provider = await NodeDriverServiceProvider.connect(connectionString, {
-            productDocsLink: "https://docs.mongodb.com/todo-mcp",
-            productName: "MongoDB MCP",
-            readConcern: {
-                level: this.config.connectOptions.readConcern,
-            },
-            readPreference: this.config.connectOptions.readPreference,
-            writeConcern: {
-                w: this.config.connectOptions.writeConcern,
-            },
-            timeoutMS: this.config.connectOptions.timeoutMS,
-        });
-
-        this.session.serviceProvider = provider;
+    protected connectToMongoDB(connectionString: string): Promise<void> {
+        return this.session.connectToMongoDB(connectionString, this.config.connectOptions);
     }
 }

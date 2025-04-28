@@ -2,9 +2,10 @@ import { NodeDriverServiceProvider } from "@mongosh/service-provider-node-driver
 import { ApiClient, ApiClientCredentials } from "./common/atlas/apiClient.js";
 import { Implementation } from "@modelcontextprotocol/sdk/types.js";
 import EventEmitter from "events";
+import { ConnectOptions } from "./config.js";
 
 export interface SessionOptions {
-    apiBaseUrl?: string;
+    apiBaseUrl: string;
     apiClientId?: string;
     apiClientSecret?: string;
 }
@@ -20,7 +21,7 @@ export class Session extends EventEmitter<{
         version: string;
     };
 
-    constructor({ apiBaseUrl, apiClientId, apiClientSecret }: SessionOptions = {}) {
+    constructor({ apiBaseUrl, apiClientId, apiClientSecret }: SessionOptions) {
         super();
 
         const credentials: ApiClientCredentials | undefined =
@@ -57,5 +58,22 @@ export class Session extends EventEmitter<{
 
             this.emit("close");
         }
+    }
+
+    async connectToMongoDB(connectionString: string, connectOptions: ConnectOptions): Promise<void> {
+        const provider = await NodeDriverServiceProvider.connect(connectionString, {
+            productDocsLink: "https://docs.mongodb.com/todo-mcp",
+            productName: "MongoDB MCP",
+            readConcern: {
+                level: connectOptions.readConcern,
+            },
+            readPreference: connectOptions.readPreference,
+            writeConcern: {
+                w: connectOptions.writeConcern,
+            },
+            timeoutMS: connectOptions.timeoutMS,
+        });
+
+        this.serviceProvider = provider;
     }
 }
