@@ -1,6 +1,6 @@
 import { Session } from "../session.js";
 import { BaseEvent, CommonProperties } from "./types.js";
-import { config } from "../config.js";
+import { UserConfig } from "../config.js";
 import logger, { LogId } from "../logger.js";
 import { ApiClient } from "../common/atlas/apiClient.js";
 import { MACHINE_METADATA } from "./constants.js";
@@ -16,6 +16,7 @@ export class Telemetry {
 
     constructor(
         private readonly session: Session,
+        private readonly userConfig: UserConfig,
         private readonly eventCache: EventCache = EventCache.getInstance()
     ) {
         this.commonProperties = {
@@ -24,37 +25,13 @@ export class Telemetry {
     }
 
     /**
-     * Checks if telemetry is currently enabled
-     * This is a method rather than a constant to capture runtime config changes
-     *
-     * Follows the Console Do Not Track standard (https://consoledonottrack.com/)
-     * by respecting the DO_NOT_TRACK environment variable
-     */
-    private static isTelemetryEnabled(): boolean {
-        // Check if telemetry is explicitly disabled in config
-        if (config.telemetry === "disabled") {
-            return false;
-        }
-
-        const doNotTrack = process.env.DO_NOT_TRACK;
-        if (doNotTrack) {
-            const value = doNotTrack.toLowerCase();
-            // Telemetry should be disabled if DO_NOT_TRACK is "1", "true", or "yes"
-            if (value === "1" || value === "true" || value === "yes") {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
      * Emits events through the telemetry pipeline
      * @param events - The events to emit
      */
     public async emitEvents(events: BaseEvent[]): Promise<void> {
         try {
-            if (!Telemetry.isTelemetryEnabled()) {
+            if (!this.isTelemetryEnabled()) {
+                logger.info(LogId.telemetryEmitFailure, "telemetry", `Telemetry is disabled.`);
                 return;
             }
 
@@ -75,8 +52,25 @@ export class Telemetry {
             mcp_client_name: this.session.agentRunner?.name,
             session_id: this.session.sessionId,
             config_atlas_auth: this.session.apiClient.hasCredentials() ? "true" : "false",
-            config_connection_string: config.connectionString ? "true" : "false",
+            config_connection_string: this.userConfig.connectionString ? "true" : "false",
         };
+    }
+
+    /**
+     * Checks if telemetry is currently enabled
+     * This is a method rather than a constant to capture runtime config changes
+     *
+     * Follows the Console Do Not Track standard (https://consoledonottrack.com/)
+     * by respecting the DO_NOT_TRACK environment variable
+     */
+    public isTelemetryEnabled(): boolean {
+        // Check if telemetry is explicitly disabled in config
+        if (this.userConfig.telemetry === "disabled") {
+            return false;
+        }
+
+        const doNotTrack = "DO_NOT_TRACK" in process.env;
+        return !doNotTrack;
     }
 
     /**
@@ -96,7 +90,11 @@ export class Telemetry {
         const result = await this.sendEvents(this.session.apiClient, allEvents);
         if (result.success) {
             this.eventCache.clearEvents();
-            logger.debug(LogId.telemetryEmitSuccess, "telemetry", `Sent ${allEvents.length} events successfully`);
+            logger.debug(
+                LogId.telemetryEmitSuccess,
+                "telemetry",
+                `Sent ${allEvents.length} events successfully: ${JSON.stringify(allEvents, null, 2)}`
+            );
             return;
         }
 
