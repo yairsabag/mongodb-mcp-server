@@ -107,7 +107,6 @@ export class Server {
             timestamp: new Date().toISOString(),
             source: "mdbmcp",
             properties: {
-                ...this.telemetry.getCommonProperties(),
                 result: "success",
                 duration_ms: commandDuration,
                 component: "server",
@@ -119,7 +118,7 @@ export class Server {
         if (command === "start") {
             event.properties.startup_time_ms = commandDuration;
             event.properties.read_only_mode = this.userConfig.readOnly || false;
-            event.properties.disallowed_tools = this.userConfig.disabledTools || [];
+            event.properties.disabled_tools = this.userConfig.disabledTools || [];
         }
         if (command === "stop") {
             event.properties.runtime_duration_ms = Date.now() - this.startTime;

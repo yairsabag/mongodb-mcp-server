@@ -21,16 +21,23 @@ describe("Telemetry", () => {
 
     // Helper function to create properly typed test events
     function createTestEvent(options?: {
-        source?: string;
         result?: TelemetryResult;
         component?: string;
         category?: string;
         command?: string;
         duration_ms?: number;
-    }): BaseEvent {
+    }): Omit<BaseEvent, "properties"> & {
+        properties: {
+            component: string;
+            duration_ms: number;
+            result: TelemetryResult;
+            category: string;
+            command: string;
+        };
+    } {
         return {
             timestamp: new Date().toISOString(),
-            source: options?.source || "mdbmcp",
+            source: "mdbmcp",
             properties: {
                 component: options?.component || "test-component",
                 duration_ms: options?.duration_ms || 100,
@@ -48,6 +55,12 @@ describe("Telemetry", () => {
         appendEventsCalls = 0,
         sendEventsCalledWith = undefined,
         appendEventsCalledWith = undefined,
+    }: {
+        sendEventsCalls?: number;
+        clearEventsCalls?: number;
+        appendEventsCalls?: number;
+        sendEventsCalledWith?: BaseEvent[] | undefined;
+        appendEventsCalledWith?: BaseEvent[] | undefined;
     } = {}) {
         const { calls: sendEvents } = mockApiClient.sendEvents.mock;
         const { calls: clearEvents } = mockEventCache.clearEvents.mock;
@@ -58,7 +71,15 @@ describe("Telemetry", () => {
         expect(appendEvents.length).toBe(appendEventsCalls);
 
         if (sendEventsCalledWith) {
-            expect(sendEvents[0]?.[0]).toEqual(sendEventsCalledWith);
+            expect(sendEvents[0]?.[0]).toEqual(
+                sendEventsCalledWith.map((event) => ({
+                    ...event,
+                    properties: {
+                        ...telemetry.getCommonProperties(),
+                        ...event.properties,
+                    },
+                }))
+            );
         }
 
         if (appendEventsCalledWith) {
@@ -71,7 +92,7 @@ describe("Telemetry", () => {
         jest.clearAllMocks();
 
         // Setup mocked API client
-        mockApiClient = new MockApiClient() as jest.Mocked<ApiClient>;
+        mockApiClient = new MockApiClient({ baseUrl: "" }) as jest.Mocked<ApiClient>;
         mockApiClient.sendEvents = jest.fn().mockResolvedValue(undefined);
         mockApiClient.hasCredentials = jest.fn().mockReturnValue(true);
 
