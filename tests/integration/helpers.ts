@@ -5,6 +5,7 @@ import { UserConfig } from "../../src/config.js";
 import { McpError } from "@modelcontextprotocol/sdk/types.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Session } from "../../src/session.js";
+import { Telemetry } from "../../src/telemetry/telemetry.js";
 import { config } from "../../src/config.js";
 
 interface ParameterInfo {
@@ -56,9 +57,14 @@ export function setupIntegrationTest(getUserConfig: () => UserConfig): Integrati
             apiClientSecret: userConfig.apiClientSecret,
         });
 
+        userConfig.telemetry = "disabled";
+
+        const telemetry = Telemetry.create(session, userConfig);
+
         mcpServer = new Server({
             session,
             userConfig,
+            telemetry,
             mcpServer: new McpServer({
                 name: "test-server",
                 version: "5.2.3",

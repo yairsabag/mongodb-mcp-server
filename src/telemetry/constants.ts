@@ -1,11 +1,10 @@
 import { packageInfo } from "../packageInfo.js";
 import { type CommonStaticProperties } from "./types.js";
-import { getDeviceId } from "./device-id.js";
+
 /**
  * Machine-specific metadata formatted for telemetry
  */
 export const MACHINE_METADATA: CommonStaticProperties = {
-    device_id: getDeviceId(),
     mcp_server_version: packageInfo.version,
     mcp_server_name: packageInfo.mcpServerName,
     platform: process.platform,

@@ -5,23 +5,101 @@ import logger, { LogId } from "../logger.js";
 import { ApiClient } from "../common/atlas/apiClient.js";
 import { MACHINE_METADATA } from "./constants.js";
 import { EventCache } from "./eventCache.js";
+import { createHmac } from "crypto";
+import nodeMachineId from "node-machine-id";
+import { DeferredPromise } from "../deferred-promise.js";
 
 type EventResult = {
     success: boolean;
     error?: Error;
 };
 
-export class Telemetry {
-    private readonly commonProperties: CommonProperties;
+export const DEVICE_ID_TIMEOUT = 3000;
 
-    constructor(
+export class Telemetry {
+    private isBufferingEvents: boolean = true;
+    /** Resolves when the device ID is retrieved or timeout occurs */
+    public deviceIdPromise: DeferredPromise<string> | undefined;
+    private eventCache: EventCache;
+    private getRawMachineId: () => Promise<string>;
+
+    private constructor(
         private readonly session: Session,
         private readonly userConfig: UserConfig,
-        private readonly eventCache: EventCache = EventCache.getInstance()
+        private readonly commonProperties: CommonProperties,
+        { eventCache, getRawMachineId }: { eventCache: EventCache; getRawMachineId: () => Promise<string> }
     ) {
-        this.commonProperties = {
-            ...MACHINE_METADATA,
-        };
+        this.eventCache = eventCache;
+        this.getRawMachineId = getRawMachineId;
+    }
+
+    static create(
+        session: Session,
+        userConfig: UserConfig,
+        {
+            commonProperties = { ...MACHINE_METADATA },
+            eventCache = EventCache.getInstance(),
+
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+            getRawMachineId = () => nodeMachineId.machineId(true),
+        }: {
+            eventCache?: EventCache;
+            getRawMachineId?: () => Promise<string>;
+            commonProperties?: CommonProperties;
+        } = {}
+    ): Telemetry {
+        const instance = new Telemetry(session, userConfig, commonProperties, { eventCache, getRawMachineId });
+
+        void instance.start();
+        return instance;
+    }
+
+    private async start(): Promise<void> {
+        if (!this.isTelemetryEnabled()) {
+            return;
+        }
+        this.deviceIdPromise = DeferredPromise.fromPromise(this.getDeviceId(), {
+            timeout: DEVICE_ID_TIMEOUT,
+            onTimeout: (resolve) => {
+                resolve("unknown");
+                logger.debug(LogId.telemetryDeviceIdTimeout, "telemetry", "Device ID retrieval timed out");
+            },
+        });
+        this.commonProperties.device_id = await this.deviceIdPromise;
+
+        this.isBufferingEvents = false;
+    }
+
+    public async close(): Promise<void> {
+        this.deviceIdPromise?.resolve("unknown");
+        this.isBufferingEvents = false;
+        await this.emitEvents(this.eventCache.getEvents());
+    }
+
+    /**
+     * @returns A hashed, unique identifier for the running device or `"unknown"` if not known.
+     */
+    private async getDeviceId(): Promise<string> {
+        try {
+            if (this.commonProperties.device_id) {
+                return this.commonProperties.device_id;
+            }
+
+            const originalId: string = await this.getRawMachineId();
+
+            // Create a hashed format from the all uppercase version of the machine ID
+            // to match it exactly with the denisbrodbeck/machineid library that Atlas CLI uses.
+            const hmac = createHmac("sha256", originalId.toUpperCase());
+
+            /** This matches the message used to create the hashes in Atlas CLI */
+            const DEVICE_ID_HASH_MESSAGE = "atlascli";
+
+            hmac.update(DEVICE_ID_HASH_MESSAGE);
+            return hmac.digest("hex");
+        } catch (error) {
+            logger.debug(LogId.telemetryDeviceIdFailure, "telemetry", String(error));
+            return "unknown";
+        }
     }
 
     /**
@@ -78,6 +156,11 @@ export class Telemetry {
      * Falls back to caching if both attempts fail
      */
     private async emit(events: BaseEvent[]): Promise<void> {
+        if (this.isBufferingEvents) {
+            this.eventCache.appendEvents(events);
+            return;
+        }
+
         const cachedEvents = this.eventCache.getEvents();
         const allEvents = [...cachedEvents, ...events];
 

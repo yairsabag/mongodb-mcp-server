@@ -16,6 +16,7 @@ export interface ServerOptions {
     session: Session;
     userConfig: UserConfig;
     mcpServer: McpServer;
+    telemetry: Telemetry;
 }
 
 export class Server {
@@ -25,10 +26,10 @@ export class Server {
     public readonly userConfig: UserConfig;
     private readonly startTime: number;
 
-    constructor({ session, mcpServer, userConfig }: ServerOptions) {
+    constructor({ session, mcpServer, userConfig, telemetry }: ServerOptions) {
         this.startTime = Date.now();
         this.session = session;
-        this.telemetry = new Telemetry(session, userConfig);
+        this.telemetry = telemetry;
         this.mcpServer = mcpServer;
         this.userConfig = userConfig;
     }
@@ -93,6 +94,7 @@ export class Server {
     }
 
     async close(): Promise<void> {
+        await this.telemetry.close();
         await this.session.close();
         await this.mcpServer.close();
     }
