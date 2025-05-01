@@ -38,6 +38,8 @@ node -v
 
 Most MCP clients require a configuration file to be created or modified to add the MCP server.
 
+Note: The configuration file syntax can be different across clients. Please refer to the following links for the latest expected syntax:
+
 - **Windsurf**:https://docs.windsurf.com/windsurf/mcp
 - **VSCode**: https://docs.codeium.com/docs/mcp
 - **Claude Desktop**: https://modelcontextprotocol.io/quickstart/user
@@ -49,7 +51,7 @@ You can pass your connection string via args, make sure to use a valid username 
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "MongoDB": {
       "command": "npx",
       "args": [
@@ -69,7 +71,7 @@ Use your Atlas API Service Account credentials. More details in the [Atlas API A
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "MongoDB": {
       "command": "npx",
       "args": [
@@ -258,7 +260,7 @@ export MDB_MCP_LOG_PATH="/path/to/logs"
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "MongoDB": {
       "command": "npx",
       "args": ["-y", "mongodb-mcp-server"],
@@ -274,7 +276,7 @@ export MDB_MCP_LOG_PATH="/path/to/logs"
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "MongoDB": {
       "command": "npx",
       "args": ["-y", "mongodb-mcp-server"],
@@ -301,7 +303,7 @@ npx -y mongodb-mcp-server --apiClientId="your-atlas-client-id" --apiClientSecret
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "MongoDB": {
       "command": "npx",
       "args": [
@@ -319,7 +321,7 @@ npx -y mongodb-mcp-server --apiClientId="your-atlas-client-id" --apiClientSecret
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "MongoDB": {
       "command": "npx",
       "args": [
