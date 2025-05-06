@@ -7,7 +7,7 @@ import { MACHINE_METADATA } from "./constants.js";
 import { EventCache } from "./eventCache.js";
 import { createHmac } from "crypto";
 import nodeMachineId from "node-machine-id";
-import { DeferredPromise } from "../deferred-promise.js";
+import { DeferredPromise } from "../helpers/deferred-promise.js";
 
 type EventResult = {
     success: boolean;
@@ -40,7 +40,6 @@ export class Telemetry {
             commonProperties = { ...MACHINE_METADATA },
             eventCache = EventCache.getInstance(),
 
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
             getRawMachineId = () => nodeMachineId.machineId(true),
         }: {
             eventCache?: EventCache;

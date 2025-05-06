@@ -4,6 +4,8 @@ import { Implementation } from "@modelcontextprotocol/sdk/types.js";
 import logger, { LogId } from "./logger.js";
 import EventEmitter from "events";
 import { ConnectOptions } from "./config.js";
+import { setAppNameParamIfMissing } from "./helpers/connectionOptions.js";
+import { packageInfo } from "./helpers/packageInfo.js";
 
 export interface SessionOptions {
     apiBaseUrl: string;
@@ -98,6 +100,10 @@ export class Session extends EventEmitter<{
     }
 
     async connectToMongoDB(connectionString: string, connectOptions: ConnectOptions): Promise<void> {
+        connectionString = setAppNameParamIfMissing({
+            connectionString,
+            defaultAppName: `${packageInfo.mcpServerName} ${packageInfo.version}`,
+        });
         const provider = await NodeDriverServiceProvider.connect(connectionString, {
             productDocsLink: "https://docs.mongodb.com/todo-mcp",
             productName: "MongoDB MCP",
