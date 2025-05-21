@@ -34,7 +34,6 @@ try {
 
     process.on("SIGINT", () => {
         logger.info(LogId.serverCloseRequested, "server", `Server close requested`);
-
         server
             .close()
             .then(() => {
@@ -50,9 +49,8 @@ try {
 
     await server.connect(transport);
 
-    // ✅ הפעלת שרת HTTP כדי ש-Railway תזהה שהאפליקציה באוויר
+    // Start health-check server
     import("./http-server.js");
-
 } catch (error: unknown) {
     logger.emergency(LogId.serverStartFailure, "server", `Fatal error running server: ${error as string}`);
     process.exit(1);
