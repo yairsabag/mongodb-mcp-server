@@ -7,7 +7,7 @@ import { Session } from "./session.js";
 import { Server } from "./server.js";
 import { packageInfo } from "./helpers/packageInfo.js";
 import { Telemetry } from "./telemetry/telemetry.js";
-import { createEJsonTransport } from "./helpers/EJsonTransport.js";
+import { createHttpTransport } from "@modelcontextprotocol/sdk/server/http.js"; // ⬅️ שונה כאן
 
 try {
     const session = new Session({
@@ -15,6 +15,7 @@ try {
         apiClientId: config.apiClientId,
         apiClientSecret: config.apiClientSecret,
     });
+
     const mcpServer = new McpServer({
         name: packageInfo.mcpServerName,
         version: packageInfo.version,
@@ -29,7 +30,9 @@ try {
         userConfig: config,
     });
 
-    const transport = createEJsonTransport();
+    // השתמש ב-HTTP Transport עם פורט מ־env או ברירת מחדל 3000
+    const port = parseInt(process.env.PORT || "3000");
+    const transport = createHttpTransport({ port });
 
     process.on("SIGINT", () => {
         logger.info(LogId.serverCloseRequested, "server", `Server close requested`);
