@@ -7,7 +7,7 @@ import { Session } from "./session.js";
 import { Server } from "./server.js";
 import { packageInfo } from "./helpers/packageInfo.js";
 import { Telemetry } from "./telemetry/telemetry.js";
-import { createHttpTransport } from "@modelcontextprotocol/sdk/server/http.js"; // ⬅️ שונה כאן
+import { createEJsonTransport } from "./helpers/EJsonTransport.js";
 
 try {
     const session = new Session({
@@ -30,9 +30,7 @@ try {
         userConfig: config,
     });
 
-    // השתמש ב-HTTP Transport עם פורט מ־env או ברירת מחדל 3000
-    const port = parseInt(process.env.PORT || "3000");
-    const transport = createHttpTransport({ port });
+    const transport = createEJsonTransport();
 
     process.on("SIGINT", () => {
         logger.info(LogId.serverCloseRequested, "server", `Server close requested`);
@@ -51,6 +49,10 @@ try {
     });
 
     await server.connect(transport);
+
+    // ✅ הפעלת שרת HTTP כדי ש-Railway תזהה שהאפליקציה באוויר
+    import("./http-server.js");
+
 } catch (error: unknown) {
     logger.emergency(LogId.serverStartFailure, "server", `Fatal error running server: ${error as string}`);
     process.exit(1);
